@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 import rdkit.Chem as Chem
 import torch.nn.functional as F
-from nnutils import *
-from chemutils import get_mol
+from jtnn.nnutils import *
+from jtnn.chemutils import get_mol
 
 ELEM_LIST = ['C', 'N', 'O', 'S', 'F', 'Si', 'P', 'Cl', 'Br', 'Mg', 'Na', 'Ca', 'Fe', 'Al', 'I', 'B', 'K', 'Se', 'Zn', 'H', 'Cu', 'Mn', 'unknown']
 
@@ -17,17 +17,17 @@ def onek_encoding_unk(x, allowable_set):
     return map(lambda s: x == s, allowable_set)
 
 def atom_features(atom):
-    return torch.Tensor(onek_encoding_unk(atom.GetSymbol(), ELEM_LIST) 
-            + onek_encoding_unk(atom.GetDegree(), [0,1,2,3,4,5]) 
-            + onek_encoding_unk(atom.GetFormalCharge(), [-1,-2,1,2,0])
-            + onek_encoding_unk(int(atom.GetChiralTag()), [0,1,2,3])
+    return torch.Tensor(list(onek_encoding_unk(atom.GetSymbol(), ELEM_LIST))
+            + list(onek_encoding_unk(atom.GetDegree(), [0,1,2,3,4,5]))
+            + list(onek_encoding_unk(atom.GetFormalCharge(), [-1,-2,1,2,0]))
+            + list(onek_encoding_unk(int(atom.GetChiralTag()), [0,1,2,3]))
             + [atom.GetIsAromatic()])
 
 def bond_features(bond):
     bt = bond.GetBondType()
     stereo = int(bond.GetStereo())
     fbond = [bt == Chem.rdchem.BondType.SINGLE, bt == Chem.rdchem.BondType.DOUBLE, bt == Chem.rdchem.BondType.TRIPLE, bt == Chem.rdchem.BondType.AROMATIC, bond.IsInRing()]
-    fstereo = onek_encoding_unk(stereo, [0,1,2,3,4,5])
+    fstereo = list(onek_encoding_unk(stereo, [0,1,2,3,4,5]))
     return torch.Tensor(fbond + fstereo)
 
 def mol2graph(mol_batch):
@@ -70,11 +70,11 @@ def mol2graph(mol_batch):
     agraph = torch.zeros(total_atoms,MAX_NB).long()
     bgraph = torch.zeros(total_bonds,MAX_NB).long()
 
-    for a in xrange(total_atoms):
+    for a in range(total_atoms):
         for i,b in enumerate(in_bonds[a]):
             agraph[a,i] = b
 
-    for b1 in xrange(1, total_bonds):
+    for b1 in range(1, total_bonds):
         x,y = all_bonds[b1]
         for i,b2 in enumerate(in_bonds[x]):
             if all_bonds[b2][0] != y:
@@ -103,7 +103,7 @@ class MPN(nn.Module):
         binput = self.W_i(fbonds)
         message = nn.ReLU()(binput)
 
-        for i in xrange(self.depth - 1):
+        for i in range(self.depth - 1):
             nei_message = index_select_ND(message, 0, bgraph)
             nei_message = nei_message.sum(dim=1)
             nei_message = self.W_h(nei_message)

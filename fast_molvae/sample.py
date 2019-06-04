@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 
 import sys
-sys.path.append('D:\\workspace\\python\\vae-jt')
 
 import math, random, sys
 import argparse

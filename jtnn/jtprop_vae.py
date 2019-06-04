@@ -1,13 +1,13 @@
 import torch
 import torch.nn as nn
-from mol_tree import Vocab, MolTree
-from nnutils import create_var
-from jtnn_enc import JTNNEncoder
-from jtnn_dec import JTNNDecoder
-from mpn import MPN, mol2graph
-from jtmpn import JTMPN
+from jtnn.mol_tree import Vocab, MolTree
+from jtnn.nnutils import create_var
+from jtnn.jtnn_enc import JTNNEncoder
+from jtnn.jtnn_dec import JTNNDecoder
+from jtnn.mpn import MPN, mol2graph
+from jtnn.jtmpn import JTMPN
 
-from chemutils import enum_assemble, set_atommap, copy_edit_mol, attach_mols, atom_equal, decode_stereo
+from jtnn.chemutils import enum_assemble, set_atommap, copy_edit_mol, attach_mols, atom_equal, decode_stereo
 import rdkit
 import rdkit.Chem as Chem
 from rdkit import DataStructs
@@ -35,12 +35,12 @@ class JTPropVAE(nn.Module):
         self.jtnn = JTNNEncoder(vocab, hidden_size, self.embedding)
         self.jtmpn = JTMPN(hidden_size, depth)
         self.mpn = MPN(hidden_size, depth)
-        self.decoder = JTNNDecoder(vocab, hidden_size, latent_size / 2, self.embedding)
+        self.decoder = JTNNDecoder(vocab, hidden_size, latent_size // 2, self.embedding)
 
-        self.T_mean = nn.Linear(hidden_size, latent_size / 2)
-        self.T_var = nn.Linear(hidden_size, latent_size / 2)
-        self.G_mean = nn.Linear(hidden_size, latent_size / 2)
-        self.G_var = nn.Linear(hidden_size, latent_size / 2)
+        self.T_mean = nn.Linear(hidden_size, latent_size // 2)
+        self.T_var = nn.Linear(hidden_size, latent_size // 2)
+        self.G_mean = nn.Linear(hidden_size, latent_size // 2)
+        self.G_var = nn.Linear(hidden_size, latent_size // 2)
         
         self.propNN = nn.Sequential(
                 nn.Linear(self.latent_size, self.hidden_size),
@@ -211,7 +211,7 @@ class JTPropVAE(nn.Module):
         cur_vec = create_var(mean.data, True)
 
         visited = []
-        for step in xrange(num_iter):
+        for step in range(num_iter):
             prop_val = self.propNN(cur_vec).squeeze()
             grad = torch.autograd.grad(prop_val, cur_vec)[0]
             cur_vec = cur_vec.data + lr * grad.data
@@ -220,7 +220,7 @@ class JTPropVAE(nn.Module):
         
         l,r = 0, num_iter - 1
         while l < r - 1:
-            mid = (l + r) / 2
+            mid = (l + r) // 2
             new_vec = visited[mid]
             tree_vec,mol_vec = torch.chunk(new_vec, 2, dim=1)
             new_smiles = self.decode(tree_vec, mol_vec, prob_decode=False)
@@ -293,7 +293,8 @@ class JTPropVAE(nn.Module):
         stereo_vecs = self.G_mean(stereo_vecs)
         scores = nn.CosineSimilarity()(stereo_vecs, mol_vec)
         _,max_id = scores.max(dim=0)
-        return stereo_cands[max_id.data[0]]
+        # return stereo_cands[max_id.data[0]]
+        return stereo_cands[max_id.data]
 
     def dfs_assemble(self, tree_mess, mol_vec, all_nodes, cur_mol, global_amap, fa_amap, cur_node, fa_node, prob_decode):
         fa_nid = fa_node.nid if fa_node is not None else -1
@@ -325,9 +326,10 @@ class JTPropVAE(nn.Module):
             _,cand_idx = torch.sort(scores, descending=True)
 
         backup_mol = Chem.RWMol(cur_mol)
-        for i in xrange(cand_idx.numel()):
+        for i in range(cand_idx.numel()):
             cur_mol = Chem.RWMol(backup_mol)
-            pred_amap = cand_amap[cand_idx[i].data[0]]
+            # pred_amap = cand_amap[cand_idx[i].data[0]]
+            pred_amap = cand_amap[cand_idx[i].data]
             new_global_amap = copy.deepcopy(global_amap)
 
             for nei_id,ctr_atom,nei_atom in pred_amap:
