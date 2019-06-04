@@ -1,14 +1,14 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from mol_tree import Vocab, MolTree
-from nnutils import create_var, flatten_tensor, avg_pool
-from jtnn_enc import JTNNEncoder
-from jtnn_dec import JTNNDecoder
-from mpn import MPN
-from jtmpn import JTMPN
+from fast_jtnn.mol_tree import Vocab, MolTree
+from fast_jtnn.nnutils import create_var, flatten_tensor, avg_pool
+from fast_jtnn.jtnn_enc import JTNNEncoder
+from fast_jtnn.jtnn_dec import JTNNDecoder
+from fast_jtnn.mpn import MPN
+from fast_jtnn.jtmpn import JTMPN
 
-from chemutils import enum_assemble, set_atommap, copy_edit_mol, attach_mols
+from fast_jtnn.chemutils import enum_assemble, set_atommap, copy_edit_mol, attach_mols
 import rdkit
 import rdkit.Chem as Chem
 import copy, math
@@ -19,7 +19,7 @@ class JTNNVAE(nn.Module):
         super(JTNNVAE, self).__init__()
         self.vocab = vocab
         self.hidden_size = hidden_size
-        self.latent_size = latent_size = latent_size / 2 #Tree and Mol has two vectors
+        self.latent_size = latent_size = latent_size // 2 #Tree and Mol has two vectors
 
         self.jtnn = JTNNEncoder(hidden_size, depthT, nn.Embedding(vocab.size(), hidden_size))
         self.decoder = JTNNDecoder(vocab, hidden_size, latent_size, nn.Embedding(vocab.size(), hidden_size))
@@ -186,7 +186,7 @@ class JTNNVAE(nn.Module):
 
         backup_mol = Chem.RWMol(cur_mol)
         pre_mol = cur_mol
-        for i in xrange(cand_idx.numel()):
+        for i in range(cand_idx.numel()):
             cur_mol = Chem.RWMol(backup_mol)
             pred_amap = cand_amap[cand_idx[i].item()]
             new_global_amap = copy.deepcopy(global_amap)

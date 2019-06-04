@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
 
+import sys
+sys.path.append('D:\\workspace\\python\\vae-jt')
+
 import math, random, sys
 import argparse
 from fast_jtnn import *
@@ -29,5 +32,5 @@ model.load_state_dict(torch.load(args.model))
 model = model.cuda()
 
 torch.manual_seed(0)
-for i in xrange(args.nsample):
-    print model.sample_prior()
+for i in range(args.nsample):
+    print (model.sample_prior())
